@@ -4,7 +4,9 @@ Report management
 import json
 import logging
 import re
-from datetime import datetime
+import os
+
+from datetime import datetime, timedelta
 
 from core.extractors import Extractor
 from core.filemanager import FileManager
@@ -100,7 +102,9 @@ class ReportManager:
             self.logger = logging.getLogger("Reports")
 
         if len(self.last_reports) == 0:
-            self.logger.info("First run, re-reading cache entries")
+            self.logger.info("First run, cleaning up old reports...")
+            ReportCache.cache_cleanup()
+            self.logger.info("Re-reading cache entries...")
             self.last_reports = ReportCache.cache_grab()
             self.logger.info("Got %d reports from cache", len(self.last_reports))
         offset = page * 12
@@ -322,3 +326,46 @@ class ReportCache:
         for existing in FileManager.list_directory("cache/reports", ends_with=".json"):
             output[existing.replace(".json", "")] = FileManager.load_json_file(f"cache/reports/{existing}")
         return output
+
+    @staticmethod
+    def cache_cleanup(max_age_days=5):
+        """
+        Automatically removes reports where the attack itself happened more
+        than `max_age_days` ago.
+        """
+        expiry_timestamp = (datetime.now() - timedelta(days=max_age_days)).timestamp()
+        report_dir = "cache/reports"
+        logger = logging.getLogger("Reports")
+
+        if not os.path.exists(report_dir):
+            return
+
+        removed_count = 0
+        for filename in FileManager.list_directory(report_dir, ends_with=".json"):
+            filepath = os.path.join(report_dir, filename)
+
+            try:
+                report = FileManager.load_json_file(filepath)
+                if not "extra" in report:
+                    continue
+
+                attack_timestamp = report.get("extra", {}).get("when")
+                if attack_timestamp is None:
+                    continue
+
+                attack_timestamp = float(attack_timestamp)
+
+                if attack_timestamp < expiry_timestamp:
+                    FileManager.remove_file(filepath)
+                    removed_count += 1
+                    continue
+
+            except Exception as e:
+                logger.warning(
+                    f"Error processing {filename} during clreanup: {e}. Skipping file."
+                    )
+
+        if removed_count > 0:
+            logger.info(
+                f"Removed {removed_count} old reports from cache"
+                )
