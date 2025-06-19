@@ -5,6 +5,7 @@ import json
 import logging
 import re
 import os
+import locale
 
 from datetime import datetime, timedelta
 
@@ -175,12 +176,39 @@ class ReportManager:
         to_player = None
 
         extra = {}
-
         losses = {}
 
-        attacked = re.search(r'(\d{2}\.\d{2}\.\d{2} \d{2}\:\d{2}\:\d{2})<span class=\"small grey\">', report)
-        if attacked:
-            extra["when"] = int(datetime.strptime(attacked.group(1), "%d.%m.%y %H:%M:%S").timestamp())
+        pattern = r'(?si)Data da batalha\s*</td>\s*<td>\s*(.+?)<'
+        match = re.search(pattern, report)
+
+        timestamp_str = None
+        if match:
+            timestamp_str = match.group(1).strip()
+
+        if timestamp_str:
+            try:
+                date_format = "%b. %d, %Y %H:%M:%S"
+                parsed_datetime = datetime.strptime(timestamp_str, date_format)
+                extra["when"] = int(parsed_datetime.timestamp())
+
+            except ValueError:
+                try:
+                    self.logger.warning(
+                        f"System locale failed. Trying to force pt_BR locale {report_id}"
+                        )
+                    locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
+                    parsed_datetime = datetime.strptime(timestamp_str, date_format)
+                    extra["when"] = int(parsed_datetime.timestamp())
+                    self.logger.debug(
+                        f"Report {report_id}: Found 'when' data with forced pt_BR locale: {datetime.fromtimestamp(extra['when'])}"
+                        )
+                    self.logger.debug("Undoing forced locale change...")
+                    locale.setlocale(locale.LC_TIME, '')
+
+                except (ValueError, locale.Error) as e:
+                    self.logger.error(f"Report {report_id}: Failed to read timestamp '{timestamp_str}'. Verify localization issues. Error: {e}")
+        else:
+            self.logger.warning(f"Report {report_id}: Could not find expected format timestamp (ex: jun. 19, 2025 14:55:04).")
 
         attacker = re.search(r'(?s)(<table id="attack_info_att".+?</table>)', report)
         if attacker:
