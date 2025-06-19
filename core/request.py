@@ -5,6 +5,7 @@ Class for using one generic cookie jar, emulating a single tab
 import requests
 import os
 import sys
+import collections
 from core.filemanager import FileManager
 from core.notification import Notification
 
@@ -15,6 +16,8 @@ import random
 from urllib.parse import urljoin, urlencode
 
 from core.reporter import ReporterObject
+
+Delay = collections.namedtuple('Delay', ['min', 'max'])
 
 
 class WebWrapper:
@@ -34,7 +37,6 @@ class WebWrapper:
     priority_mode = False
     auth_endpoint = None
     reporter = None
-    delay = 1.0
 
     def __init__(self, url, server=None, endpoint=None, reporter_enabled=False, reporter_constr=None):
         """
@@ -62,13 +64,13 @@ class WebWrapper:
         if get_h:
             self.last_h = get_h.group(1)
 
-    def get_url(self, url, headers=None):
+    def get_url(self, url, headers=None, delay = Delay(min=0.25, max=2)):
         """
         Fetches a URL using a basic GET request
         """
         self.headers['Origin'] = (self.endpoint if self.endpoint else self.auth_endpoint).rstrip('/')
         if not self.priority_mode:
-            time.sleep(random.uniform(0.5 * self.delay, 3.5 * self.delay))
+            time.sleep(random.uniform(delay.min, delay.max))
         url = urljoin(self.endpoint if self.endpoint else self.auth_endpoint, url)
         if not headers:
             headers = self.headers
@@ -88,12 +90,12 @@ class WebWrapper:
             self.logger.warning("GET %s: %s", url, str(e))
             return None
 
-    def post_url(self, url, data, headers=None):
+    def post_url(self, url, data, headers=None, delay = Delay(min=0.4, max=2.5)):
         """
         Sends a basic POST request with urlencoded postdata
         """
         if not self.priority_mode:
-            time.sleep(random.uniform(0.8 * self.delay, 4 * self.delay))
+            time.sleep(random.uniform(delay.min, delay.max))
         self.headers['Origin'] = (self.endpoint if self.endpoint else self.auth_endpoint).rstrip('/')
         url = urljoin(self.endpoint if self.endpoint else self.auth_endpoint, url)
         enc = urlencode(data)

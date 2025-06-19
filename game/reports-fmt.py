@@ -6,11 +6,9 @@ import logging
 import re
 import os
 import locale
-import random
 
 from datetime import datetime, timedelta
 
-from core.request import Delay
 from core.extractors import Extractor
 from core.filemanager import FileManager
 
@@ -123,30 +121,10 @@ class ReportManager:
             if report_id in self.last_reports:
                 continue
             current_report += 1
+            if current_report % 10 == 0):
+            
             url = f"game.php?village={self.village_id}&screen=report&mode=all&group_id=0&view={report_id}"
-
-            '''
-            
-            #TODO: Consider using this to reduce workload. I still need to understand the uses of the reports data, if reports are
-            # used mostly for statistics, this would mean a reduced accuracy, but faster processing. In that case, I would reccommend using this.
-            
-            if random.randint(0, 100) < 15:
-                self.logger.debug(
-                    f"Skipping report {report_id} to reduce workload. 3% chance. You might want to increase that if you attack the same villages thousands of times daily."
-                )
-                continue
-            
-            '''
-
-            if random.randint(0, 100) < 8:
-                data = self.wrapper.get_url(url, delay=Delay(min=0.25, max=2.5)) # Increased delay for 8% of reports
-            elif current_report % 15 == 0:
-                data = self.wrapper.get_url(url, delay=Delay(min=1, max=5)) # Guaranteed delay increase for every 15 reports 
-            else:
-                data = self.wrapper.get_url(url, delay = Delay(min=0.03, max=0.33)) # Decreased delay for faster processing.
-            
-            
-            
+            data = self.wrapper.get_url(url, delay = Delay(min=0.2, max=1)) # Decreased delay for faster processing.
 
             get_type = re.search(r'class="report_(\w+)', data.text)
             if get_type:
