@@ -116,6 +116,17 @@ class TroopManager:
             else:
                 self.total_troops[k] = int(v)
         self.logger.debug("Village units total: %s", str(self.total_troops))
+    
+    def force_update_troops(self):
+        """
+        Forces an update of the troop manager
+        """
+        self.logger.debug("Forcing an update of the troop manager")
+        try:
+            self.update_totals()
+            self.logger.info("Troop manager update successful")
+        except Exception as e:
+            self.logger.error("Error updating troop manager: %s", str(e))
 
     def start_update(self, building="barracks", disabled_units=[]):
         """

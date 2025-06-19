@@ -58,6 +58,9 @@ class AttackManager:
         """
         Checks if there are enough troops in a village
         """
+        if not units:
+            return "No units specified"
+
         for unit in units:
             if unit not in self.troopmanager.troops:
                 return f"{unit} (0/{units[unit]})"
@@ -134,8 +137,9 @@ class AttackManager:
                     return 1
                 else:
                     self.logger.debug(
-                        "Ignoring target %s because unable to attack", target["id"]
-                    )
+                        "Unable to attack %s", target["id"]
+                        )
+                    self.troopmanager.force_update_troops()
                     self._unknown_ignored.append(target["id"])
         else:
             self.logger.debug(
