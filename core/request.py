@@ -68,7 +68,7 @@ class WebWrapper:
         """
         self.headers['Origin'] = (self.endpoint if self.endpoint else self.auth_endpoint).rstrip('/')
         if not self.priority_mode:
-            time.sleep(random.randint(int(3 * self.delay), int(7 * self.delay)))
+            time.sleep(random.uniform(0.5 * self.delay, 3.5 * self.delay))
         url = urljoin(self.endpoint if self.endpoint else self.auth_endpoint, url)
         if not headers:
             headers = self.headers
@@ -93,9 +93,7 @@ class WebWrapper:
         Sends a basic POST request with urlencoded postdata
         """
         if not self.priority_mode:
-            time.sleep(
-                random.randint(int(3 * self.delay), int(7 * self.delay))
-            )
+            time.sleep(random.uniform(0.8 * self.delay, 4 * self.delay))
         self.headers['Origin'] = (self.endpoint if self.endpoint else self.auth_endpoint).rstrip('/')
         url = urljoin(self.endpoint if self.endpoint else self.auth_endpoint, url)
         enc = urlencode(data)
