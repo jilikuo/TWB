@@ -4,7 +4,7 @@ Class for using one generic cookie jar, emulating a single tab
 
 import requests
 import os
-import signal
+import sys
 from core.filemanager import FileManager
 from core.notification import Notification
 
@@ -122,7 +122,7 @@ class WebWrapper:
 
         self.web.cookies.clear()
         self.logger.info("Killing bot, set cookies via the webmanager")
-        os.kill(os.getpid(), signal.SIGKILL)
+        sys.exit(1)
         return False
         # cinp = input("Enter browser cookie string> ")
         # cookies = {}
