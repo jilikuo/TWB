@@ -4,6 +4,7 @@ File used for data extraction
 
 import json
 import re
+import logging
 
 
 class Extractor:
@@ -11,14 +12,39 @@ class Extractor:
     Defines various non-compiled regexes for data retrieval
     TODO: use compiled various for CPU efficiency
     """
+    logger = logging.getLogger('Extractor')
+
+    @staticmethod
+    def _extract_text_content(res):
+        """
+        Helper to safely extract text from a response object.
+        """
+        if res is None:
+            Extractor.logger.warning("Extraction failed. Response was None.", stack_info=True)
+            return None
+        
+        if isinstance(res, str):
+            return res
+        
+        if hasattr(res, 'text') and res.text:
+            return res.text
+
+        Extractor.logger.warning(
+            f"Extraction failed: Object of type '{type(res).__name__}' has no valid '.text' attribute. Object: {res}",
+            stack_info=True
+        )
+        return None
+            
     @staticmethod
     def village_data(res):
         """
         Detects village data on a page
         """
-        if type(res) != str:
-            res = res.text
-        grabber = re.search(r'var village = (.+);', res)
+        text = Extractor._extract_text_content(res)
+        if not text:
+            return None
+
+        grabber = re.search(r'var village = (.+);', text)
         if grabber:
             data = grabber.group(1)
             return json.loads(data, strict=False)
@@ -28,9 +54,11 @@ class Extractor:
         """
         Detects the game state that is available on most pages
         """
-        if type(res) != str:
-            res = res.text
-        grabber = re.search(r'TribalWars\.updateGameData\((.+?)\);', res)
+        text = Extractor._extract_text_content(res)
+        if not text:
+            return None
+        
+        grabber = re.search(r'TribalWars\.updateGameData\((.+?)\);', text)
         if grabber:
             data = grabber.group(1)
             return json.loads(data, strict=False)
@@ -40,9 +68,11 @@ class Extractor:
         """
         Fetches building data from the main building
         """
-        if type(res) != str:
-            res = res.text
-        dre = re.search(r'(?s)BuildingMain.buildings = (\{.+?\});', res)
+        text = Extractor._extract_text_content(res)
+        if not text:
+            return None
+        
+        dre = re.search(r'(?s)BuildingMain.buildings = (\{.+?\});', text)
         if dre:
             return json.loads(dre.group(1), strict=False)
 
@@ -53,9 +83,11 @@ class Extractor:
         """
         Gets quest data on almost any page
         """
-        if type(res) != str:
-            res = res.text
-        get_quests = re.search(r'Quests.setQuestData\((\{.+?\})\);', res)
+        text = Extractor._extract_text_content(res)
+        if not text:
+            return None
+        
+        get_quests = re.search(r'Quests.setQuestData\((\{.+?\})\);', text)
         if get_quests:
             result = json.loads(get_quests.group(1), strict=False)
             for quest in result:
@@ -69,9 +101,11 @@ class Extractor:
         """
         Detects if there are rewards available for quests
         """
-        if type(res) != str:
-            res = res.text
-        get_rewards = re.search(r'RewardSystem\.setRewards\(\s*(\[\{.+?\}\]),', res)
+        text = Extractor._extract_text_content(res)
+        if not text:
+            return []
+        
+        get_rewards = re.search(r'RewardSystem\.setRewards\(\s*(\[\{.+?\}\]),', text)
         rewards = []
         if get_rewards:
             result = json.loads(get_rewards.group(1), strict=False)
@@ -86,9 +120,11 @@ class Extractor:
         """
         Detects other villages on the map page
         """
-        if type(res) != str:
-            res = res.text
-        data = re.search(r'(?s)TWMap.sectorPrefech = (\[(.+?)\]);', res)
+        text = Extractor._extract_text_content(res)
+        if not text:
+            return []
+        
+        data = re.search(r'(?s)TWMap.sectorPrefech = (\[(.+?)\]);', text)
         if data:
             result = json.loads(data.group(1), strict=False)
             return result
@@ -98,9 +134,11 @@ class Extractor:
         """
         Gets smith data
         """
-        if type(res) != str:
-            res = res.text
-        data = re.search(r'(?s)BuildingSmith.techs = (\{.+?\});', res)
+        text = Extractor._extract_text_content(res)
+        if not text:
+            return None
+        
+        data = re.search(r'(?s)BuildingSmith.techs = (\{.+?\});', text)
         if data:
             result = json.loads(data.group(1), strict=False)
             return result
@@ -111,9 +149,11 @@ class Extractor:
         """
         Detects data on the premium exchange page
         """
-        if type(res) != str:
-            res = res.text
-        data = re.search(r'(?s)PremiumExchange.receiveData\((.+?)\);', res)
+        text = Extractor._extract_text_content(res)
+        if not text:
+            return None
+        
+        data = re.search(r'(?s)PremiumExchange.receiveData\((.+?)\);', text)
         if data:
             result = json.loads(data.group(1), strict=False)
             return result
@@ -124,9 +164,11 @@ class Extractor:
         """
         Fetches recruit data for the current building
         """
-        if type(res) != str:
-            res = res.text
-        data = re.search(r'(?s)unit_managers.units = (\{.+?\});', res)
+        text = Extractor._extract_text_content(res)
+        if not text:
+            return None
+        
+        data = re.search(r'(?s)unit_managers.units = (\{.+?\});', text)
         if data:
             raw = data.group(1)
             quote_keys_regex = r'([\{\s,])(\w+)(:)'
@@ -139,9 +181,11 @@ class Extractor:
         """
         Detects all units in the village
         """
-        if type(res) != str:
-            res = res.text
-        matches = re.search(r'<table id="units_home".*?</tr>(.*?)</tr>', res, re.DOTALL)
+        text = Extractor._extract_text_content(res)
+        if not text:
+            return []
+        
+        matches = re.search(r'<table id="units_home".*?</tr>(.*?)</tr>', text, re.DOTALL)
         # We get the start of the table and grab the 2nd row (Where "From this village" troops are located)
         if matches:
             table_content = matches.group(1)
@@ -159,9 +203,11 @@ class Extractor:
         """
         Detects queued building entries
         """
-        if type(res) != str:
-            res = res.text
-        builder = re.search('(?s)<table id="build_queue"(.+?)</table>', res)
+        text = Extractor._extract_text_content(res)
+        if not text:
+            return 0
+        
+        builder = re.search('(?s)<table id="build_queue"(.+?)</table>', text)
         if not builder:
             return 0
 
@@ -172,9 +218,11 @@ class Extractor:
         """
         Detects active recruitment entries
         """
-        if type(res) != str:
-            res = res.text
-        builder = re.findall(r'(?s)TrainOverview\.cancelOrder\((\d+)\)', res)
+        text = Extractor._extract_text_content(res)
+        if not text:
+            return []
+        
+        builder = re.findall(r'(?s)TrainOverview\.cancelOrder\((\d+)\)', text)
         return builder
 
     @staticmethod
@@ -182,9 +230,11 @@ class Extractor:
         """
         Fetches villages from the overview page
         """
-        if type(res) != str:
-            res = res.text
-        villages = re.findall(r'<span class="quickedit-vn" data-id="(\w+)"', res)
+        text = Extractor._extract_text_content(res)
+        if not text:
+            return []
+        
+        villages = re.findall(r'<span class="quickedit-vn" data-id="(\w+)"', text)
         return list(set(villages))
 
     @staticmethod
@@ -192,11 +242,13 @@ class Extractor:
         """
         Gets total amount of units in a village
         """
-        if type(res) != str:
-            res = res.text
+        text = Extractor._extract_text_content(res)
+        if not text:
+            return []
+        
         # hide units from other villages
-        res = re.sub(r'(?s)<span class="village_anchor.+?</tr>', '', res)
-        data = re.findall(r'(?s)class=\Wunit-item unit-item-([a-z]+)\W.+?(\d+)</td>', res)
+        text = re.sub(r'(?s)<span class="village_anchor.+?</tr>', '', text)
+        data = re.findall(r'(?s)class=\Wunit-item unit-item-([a-z]+)\W.+?(\d+)</td>', text)
         return data
 
     @staticmethod
@@ -205,9 +257,11 @@ class Extractor:
         Detects input fiels in the attack form
         ... because there are many :)
         """
-        if type(res) != str:
-            res = res.text
-        data = re.findall(r'(?s)<input.+?name="(.+?)".+?value="(.*?)"', res)
+        text = Extractor._extract_text_content(res)
+        if not text:
+            return []
+        
+        data = re.findall(r'(?s)<input.+?name="(.+?)".+?value="(.*?)"', text)
         return data
 
     @staticmethod
@@ -215,9 +269,11 @@ class Extractor:
         """
         Detects the duration of an attack
         """
-        if type(res) != str:
-            res = res.text
-        data = re.search(r'<span class="relative_time" data-duration="(\d+)"', res)
+        text = Extractor._extract_text_content(res)
+        if not text:
+            return 0
+        
+        data = re.search(r'<span class="relative_time" data-duration="(\d+)"', text)
         if data:
             return int(data.group(1))
         return 0
@@ -227,9 +283,11 @@ class Extractor:
         """
         Fetches information from a report
         """
-        if type(res) != str:
-            res = res.text
-        data = re.findall(r'(?s)class="report-link" data-id="(\d+)"', res)
+        text = Extractor._extract_text_content(res)
+        if not text:
+            return []
+        
+        data = re.findall(r'(?s)class="report-link" data-id="(\d+)"', text)
         return data
 
     @staticmethod
@@ -237,8 +295,10 @@ class Extractor:
         """
         Detects if there are unopened daily rewards
         """
-        if type(res) != str:
-            res = res.text
+        text = Extractor._extract_text_content(res)
+        if not text:
+            return None
+        
         get_daily = re.search(r'DailyBonus.init\((\s+\{.*\}),', res)
         res = json.loads(get_daily.group(1))
         reward_count_unlocked = str(res["reward_count_unlocked"])
