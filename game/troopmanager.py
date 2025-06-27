@@ -471,7 +471,7 @@ class TroopManager:
                             data=payload,
                             village_id=self.village_id,
                         )
-                        sleep += random.randint(5, 15)
+                        sleep += random.randint(1, 2)
                         time.sleep(sleep)
                         self.last_gather = int(time.time())
                         self.logger.info(f"Using troops for gather operation: {available_selection}")
