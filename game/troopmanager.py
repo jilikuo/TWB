@@ -191,7 +191,11 @@ class TroopManager:
         """
         Read data from templates and determine the troops based op building progression
         """
-        last = None
+        if not self.template:
+            self.logger.error("No troop template found.")
+            return None
+
+        last = self.template[0]
         wanted_upgrades = {}
         for x in self.template:
             if x["building"] not in levels:

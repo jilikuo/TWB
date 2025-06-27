@@ -6,6 +6,7 @@ Sounds dangerous but it just sends farms
 from core.extractors import Extractor
 import logging
 import time
+import random
 from datetime import datetime
 from datetime import timedelta
 
@@ -72,30 +73,54 @@ class AttackManager:
         """
         Run the farming logic
         """
-        if not self.troopmanager.can_attack or self.troopmanager.troops == {}:
-            # Disable farming is disabled in config or no troops available
+        if not self.troopmanager.can_attack:
+            self.logger.debug("Farming is disabled in config") 
             return False
+        
+        if self.troopmanager.troops == {}:
+            self.logger.warning("No troops available")
+            return False
+        
+        available_templates = []
+        for template in self.template:
+            missing = self.enough_in_village(template)
+            if not missing:
+                available_templates.append(template)
+
+        if available_templates == []:
+            self.logger.warning("Not enough troops to use selected farming templates")
+            return False
+        
         self.get_targets()
-        ignored = []
+        
         # Limits the amount of villages that are farmed from the current village
         for target in self.targets[0: self.max_farms]:
-            if type(self.template) == list:
-                f = False
-                for template in self.template:
-                    if template in ignored:
-                        continue
-                    out_res = self.send_farm(target, template)
-                    if out_res == 1:
-                        f = True
-                        break
-                    elif out_res == -1:
-                        ignored.append(template)
-                if not f:
-                    continue
-            else:
-                out_res = self.send_farm(target, self.template)
-                if out_res == -1:
+            
+            if not available_templates:
+                self.logger.info("All available farming templates are exhausted.")
+                break
+
+            random.shuffle(available_templates)
+
+            attack_result = 0
+            for template in available_templates[:]:
+                attack_result = self.send_farm(target, template)
+                if attack_result == 1:
+                    self.logger.debug("Attack was successful.")
                     break
+                
+                elif attack_result == 0:
+                    self.logger.warning("Attack failed for reasons not related to the current template.")
+                    break
+
+                elif attack_result == -1:
+                    self.logger.warning("Attack failed. Attack Status -1.")
+                    available_templates.remove(template)
+                    continue
+
+            if attack_result < 1:
+                self.logger.debug("Attack failed.")
+
 
     def send_farm(self, target, template):
         """
