@@ -292,7 +292,7 @@ class TWB:
                 if config["bot"]["inactive_still_active"]:
                     sleep = config["bot"]["inactive_delay"]
 
-            sleep += random.randint(20, 120)
+            sleep += random.randint(1, 60)
             dtn = datetime.datetime.now()
             dt_next = dtn + datetime.timedelta(0, sleep)
             print(
@@ -334,7 +334,7 @@ class TWB:
                     if config["bot"]["inactive_still_active"]:
                         sleep = config["bot"]["inactive_delay"]
 
-                sleep += random.randint(20, 120)
+                sleep += random.randint(1, 60)
                 dtn = datetime.datetime.now()
                 dt_next = dtn + datetime.timedelta(0, sleep)
                 print(
@@ -403,7 +403,7 @@ class TWB:
                     if config["bot"]["inactive_still_active"]:
                         sleep = config["bot"]["inactive_delay"]
 
-                sleep += random.randint(20, 120)
+                sleep += random.randint(1, 60)
                 dtn = datetime.datetime.now()
                 dt_next = dtn + datetime.timedelta(0, sleep)
                 self.runs += 1
