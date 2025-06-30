@@ -68,16 +68,32 @@ class ReportManager:
             if vid == entry["dest"]:
                 if entry["type"] == "attack" and entry["losses"] == {}:
                     return 1
-                if (
-                        entry["type"] == "scout"
-                        and entry["losses"] == {}
-                        and (
-                        entry["extra"]["defence_units"] == {}
-                        or entry["extra"]["defence_units"]
-                        == entry["extra"]["defence_losses"]
-                )
-                ):
-                    return 1
+                # This 'try' code should handle problematic spy
+                #reports, probably should be altered/removed if 
+                #the issue got resolved.    
+                try:
+                    if (
+                            entry["type"] == "scout"
+                            and entry["losses"] == {}
+                            and (
+                            entry["extra"]["defence_units"] == {}
+                            or entry["extra"]["defence_units"]
+                            == entry["extra"]["defence_losses"]
+                    )
+                    ):
+                        return 1
+                except KeyError:
+                    self.logger.debug(f"Report {repid} missing 'defence_units'. Checking for misclassification...")                    
+                    try: 
+                        if 'spy' not in entry["extra"]["units_sent"]:
+                            self.logger.info(f"OVERRIDE: Report {repid} was misclassified as scout (no spies sent). Forcing attack as safe.")
+                            return 1
+                        else: 
+                            self.logger.warning(f"Report {repid} is a failed scout mission (all spies lost). Treating as unsafe.")
+                        
+                    except KeyError:
+                        self.logger.error(f"Report {repid} is *probably* broken or corrupted, missing both 'defence_units' and 'units_sent'. Treating as unsafe.")                             
+                        return 0
 
                 if entry["losses"] != {}:
                     # Acceptable losses for attacks
@@ -292,32 +308,38 @@ class ReportManager:
             extra["loot"] = loot
             self.logger.info("attack report %s -> %s", from_village, to_village)
 
-        scout_results = re.search(
-            r'(?s)(<table id="attack_spy_resources".+?</table>)', report
-        )
-        if scout_results:
-            self.logger.info("scout report %s -> %s", from_village, to_village)
-            scout_buildings = re.search(
-                r'(?s)<input id="attack_spy_building_data" type="hidden" value="(.+?)"',
-                report,
-            )
-            if scout_buildings:
-                raw = scout_buildings.group(1).replace("&quot;", '"')
-                extra["buildings"] = self.re_building(json.loads(raw))
-            found_res = {}
-            for loot_entry in re.findall(
-                    r'<span class="icon header (wood|stone|iron)".+?</span>(\d+)', scout_results.group(1)
-            ):
-                found_res[loot_entry[0]] = loot_entry[1]
-            extra["resources"] = found_res
-            units_away = re.search(
-                r'(?s)(<table id="attack_spy_away".+?</table>)', report
-            )
-            if units_away:
-                data_away = self.re_unit(Extractor.units_in_total(units_away.group(1)))
-                extra["units_away"] = data_away
+        attack_type = "attack"
 
-        attack_type = "scout" if scout_results and not results else "attack"
+        if extra.get("units_sent") and list(extra["units_sent"].keys()) == ["spy"]:
+            attack_type = "scout"
+            self.logger.info("Classified report %s as 'scout' based on units sent.", report_id)
+
+        if attack_type == "scout":
+            scout_results = re.search(
+                r'(?s)(<table id="attack_spy_resources".+?</table>)', report
+            )
+            if scout_results:
+                self.logger.info("scout report %s -> %s", from_village, to_village)
+                scout_buildings = re.search(
+                    r'(?s)<input id="attack_spy_building_data" type="hidden" value="(.+?)"',
+                    report,
+                )
+                if scout_buildings:
+                    raw = scout_buildings.group(1).replace("&quot;", '"')
+                    extra["buildings"] = self.re_building(json.loads(raw))
+                found_res = {}
+                for loot_entry in re.findall(
+                        r'<span class="icon header (wood|stone|iron)".+?</span>(\d+)', scout_results.group(1)
+                ):
+                    found_res[loot_entry[0]] = loot_entry[1]
+                extra["resources"] = found_res
+                units_away = re.search(
+                    r'(?s)(<table id="attack_spy_away".+?</table>)', report
+                )
+                if units_away:
+                    data_away = self.re_unit(Extractor.units_in_total(units_away.group(1)))
+                    extra["units_away"] = data_away
+            
         res = self.put(
             report_id, attack_type, from_village, to_village, data=extra, losses=losses
         )
